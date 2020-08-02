@@ -5,11 +5,13 @@ path = require('path');
 node_ssh = require('node-ssh');
 ssh = new node_ssh();
 
+// the method that starts the deployment process
 function main() {
   console.log('Deployment started.');
   sshConnect();
 }
 
+// installs PM2
 function installPM2() {
   return ssh.execCommand(
     'sudo npm install pm2 -g', {
@@ -17,18 +19,19 @@ function installPM2() {
   });
 }
 
+// transfers local project to the remote server
 function transferProjectToRemote(failed, successful) {
   return ssh.putDirectory(
-    '../riot-express-todo-list',
-    '/home/ubuntu/riot-express-todo-list-temp',
+    '../hackathon-starter',
+    '/home/ubuntu/riot-express-todo-list',
     {
       recursive: true,
       concurrency: 1,
       validate: function(itemPath) {
         const baseName = path.basename(itemPath);
         return (
-          baseName.substr(0, 1) !== '.' && baseName !== 'node_modules' 
-        ); 
+          baseName.substr(0, 1) !== '.' && baseName !== 'node_modules' // do not allow dot files
+        ); // do not allow node_modules
       },
       tick: function(localPath, remotePath, error) {
         if (error) {
@@ -43,13 +46,15 @@ function transferProjectToRemote(failed, successful) {
   );
 }
 
+// creates a temporary folder on the remote server
 function createRemoteTempFolder() {
   return ssh.execCommand(
-    'rm -rf riot-express-todo-list-temp && mkdir riot-express-todo-list-temp', {
+    'rm -rf riot-express-todo-list && mkdir riot-express-todo-list', {
       cwd: '/home/ubuntu'
   });
 }
 
+// stops mongodb and node services on the remote server
 function stopRemoteServices() {
   return ssh.execCommand(
     'pm2 stop all && sudo service mongod stop', {
@@ -57,26 +62,30 @@ function stopRemoteServices() {
   });
 }
 
+// updates the project source on the server
 function updateRemoteApp() {
   return ssh.execCommand(
-    'mkdir riot-express-todo-list && cp -r riot-express-todo-list-temp/* riot-express-todo-list/ && rm -rf riot-express-todo-list-temp', {
+    'mkdir hackathon-starter && cp -r riot-express-todo-list/* hackathon-starter/ && rm -rf riot-express-todo-list', {
       cwd: '/home/ubuntu'
   });
 }
 
+// restart mongodb and node services on the remote server
 function restartRemoteServices() {
   return ssh.execCommand(
-    'cd riot-express-todo-list && sudo service mongod start && pm2 start app.js', {
+    'cd hackathon-starter && sudo service mongod start && pm2 start app.js', {
       cwd: '/home/ubuntu'
   });
 }
 
+// connect to the remote server
 function sshConnect() {
   console.log('Connecting to the server...');
 
   ssh
     .connect({
-      host: '54.156.37.150',
+      // TODO: ADD YOUR IP ADDRESS BELOW (e.g. '12.34.5.67')
+      host: '204.236.223.77',
       username: 'ubuntu',
       privateKey: 'dep2-key.pem'
     })
@@ -86,7 +95,7 @@ function sshConnect() {
       return installPM2();
     })
     .then(function() {
-      console.log('Creating `riot-express-todo-list-temp` folder.');
+      console.log('Creating `riot-express-todo-list` folder.');
       return createRemoteTempFolder();
     })
     .then(function(result) {
